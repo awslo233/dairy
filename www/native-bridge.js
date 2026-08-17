@@ -1,13 +1,13 @@
 (function () {
   'use strict';
 
-  // Block Coze / APM analytics requests
+  // Only block analytics/tracking, NOT the app's own API calls
   const originalFetch = window.fetch;
   window.fetch = function (url, options) {
     const urlStr = typeof url === 'string' ? url : (url && url.url) || '';
+    // Only block pure analytics endpoints
     if (urlStr.includes('code.coze.cn') ||
-        urlStr.includes('apm.volccdn.com') ||
-        urlStr.includes('coze.site/api/')) {
+        urlStr.includes('apm.volccdn.com')) {
       return Promise.resolve(new Response('{}', { status: 200 }));
     }
     return originalFetch.apply(this, arguments);
@@ -24,6 +24,8 @@
     };
   }
 
+  // Remove Coze badge (debounced to avoid performance issues)
+  let badgeTimer = null;
   function removeCozeBadge() {
     const badge = document.getElementById('coze-coding-badge');
     if (badge) badge.remove();
@@ -150,9 +152,13 @@
     }
   }, true);
 
-  // Watch DOM for Coze badge
+  // Watch DOM for Coze badge (debounced)
   const observer = new MutationObserver(function () {
-    removeCozeBadge();
+    if (badgeTimer) return;
+    badgeTimer = setTimeout(function () {
+      badgeTimer = null;
+      removeCozeBadge();
+    }, 500);
   });
 
   function init() {
